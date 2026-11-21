@@ -1,4 +1,6 @@
-> **ローカル拡張版**: [nyanko3141592/remotion-voicevox-template](https://github.com/nyanko3141592/remotion-voicevox-template)（MIT）に、全面背景（`bg`）・テロップ（`telop`）・強調枠（`marks`）・Playwright 収録・Vivliostyle 本の取り込みを追加したもの。詳しくは `CLAUDE.md` の冒頭を参照。スキルは [book-video-skills](https://github.com/h-kono-it/book-video-skills)。
+> **拡張版**: [nyanko3141592/remotion-voicevox-template](https://github.com/nyanko3141592/remotion-voicevox-template)（MIT）をベースに、全面背景（`bg`）・テロップ（`telop`）・強調枠（`marks`）・ブリーフ（`config/brief.yaml`：尺・テンポ・声・キャスト・縦横）・差分音声生成・Playwright 収録・Vivliostyle 本の取り込みを追加したもの。使い方は `CLAUDE.md` の冒頭を参照。Claude Code 用のスキルは [book-video-skills](https://github.com/h-kono-it/book-video-skills)。
+>
+> 追加で必要なもの: [VOICEVOX](https://voicevox.hiroshiba.jp/)、Node.js 20+、`brew install poppler imagemagick`（本の取り込み）、`npx playwright install chromium`（画面収録）
 
 # Remotion + VOICEVOX 動画テンプレート
 
@@ -210,6 +212,8 @@ colors:
 
 ## ライセンス
 
-MIT License
+MIT License（`LICENSE` を参照。元テンプレートの作者と拡張部分の両方の著作権表示を含む）
+
+同梱のキャラクター画像は元テンプレートに含まれていたもので、元の作者が改変・再配布を許可している。VOICEVOX の音声を使った動画には「VOICEVOX:ずんだもん」のようなクレジットが必要。
 
 キャラクター（ずんだもん・四国めたん）の利用規約は各公式サイトをご確認ください。
