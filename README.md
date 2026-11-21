@@ -1,3 +1,5 @@
+> **ローカル拡張版**: [nyanko3141592/remotion-voicevox-template](https://github.com/nyanko3141592/remotion-voicevox-template)（MIT）に、全面背景（`bg`）・テロップ（`telop`）・強調枠（`marks`）・Playwright 収録・Vivliostyle 本の取り込みを追加したもの。詳しくは `CLAUDE.md` の冒頭を参照。スキルは [book-video-skills](https://github.com/h-kono-it/book-video-skills)。
+
 # Remotion + VOICEVOX 動画テンプレート
 
 ずんだもん＆めたんの掛け合い紹介動画を簡単に作成できるテンプレートです。
