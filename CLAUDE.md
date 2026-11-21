@@ -1,3 +1,65 @@
+# このテンプレートについて（ローカル拡張版）
+
+upstream: nyanko3141592/remotion-voicevox-template に、**全面背景・テロップ・強調枠・Playwright収録・本の取り込み** を足したもの。
+台本の正本は **`config/script.yaml`**（`src/data/script.ts` は `npm run sync` で自動生成されるので直接編集しない）。
+
+## 合成レイヤー（下から順）
+
+1. 黒板デザイン（`bg` 未指定時に見える）
+2. **`bg`** 全面背景: 指定した行から**次に `bg` が出てくる行まで継続**する
+3. `visual`（upstream 互換の中央表示。新規では `bg` + `telop` を推奨）
+4. **`marks`** 強調枠 / **`telop`** 文字入れ: その行の間（＋pauseAfter）だけ表示
+5. キャラクター、字幕
+
+```yaml
+- id: 3
+  character: zundamon
+  text: ここでログインするのだ
+  scene: 2
+  pauseAfter: 10
+  bg: { type: video, src: rec/login.webm, startFrom: 2.4, fit: cover }   # 録画 → marks.json の秒数を使う
+  # bg: { type: image, src: shots/login/after-login.png, kenBurns: in } # スクショ紙芝居
+  # bg: { type: image, src: book/pages/p-042.png, fit: contain, color: "#1b1f2a" } # 本のページ
+  # bg: { type: color, color: "#1b1f2a" } / { type: none }
+  telop:
+    - { text: "第2章 認証", style: label }         # 左上の章ラベル
+    - { text: "OAuthで\n一発ログイン", style: emphasis, accent: "#ff3b30" }
+  marks:
+    - { x: 62, y: 40, w: 20, h: 8, label: "ここ" } # 画面に対する % 座標
+```
+
+| key | 値 |
+|---|---|
+| `bg.type` | `image` / `video` / `color` / `none` |
+| `bg.src` | `public/content/` からの相対パス |
+| `bg.fit` | `contain`（既定、余白は `bg.color`）/ `cover` |
+| `bg.kenBurns` | `in` / `out` / `none`（画像のゆっくりズーム） |
+| `bg.startFrom` / `playbackRate` / `volume` | 動画の開始秒・速度・音量（既定ミュート） |
+| `telop.style` | `label`(左上ピル) / `title`(上部の帯) / `emphasis`(中央の大文字) / `note`(右上の注記) |
+| `telop.position` | `top-left` / `top` / `top-right` / `center` / `bottom` |
+| `telop.accent` / `fontSize` | 色・サイズ |
+| `marks[]` | `{x, y, w, h, label?, color?}` 単位は % |
+
+注意:
+- 動画の `bg` は、その区間（次の bg まで）より録画が短いと途中で消える。区間長は各行の `durationInFrames/1.2 + pauseAfter/1.2` の合計。録画尺は `npx remotion ffprobe public/content/rec/x.webm` で確認する
+- 字幕とキャラが下部 ~280px を占めるので、`marks` やテロップを画面下端に置かない
+- 確認は `npx remotion still src/index.ts Main out/check.png --frame=N` で静止画を出して目視する（Studio を開かなくてよい）
+
+## 素材の取り込み
+
+| コマンド | 内容 |
+|---|---|
+| `npm run import-book -- <book_dir> [dpi]` | Vivliostyle 本の表紙・裏表紙・PDF全ページ → `public/content/book/`、見出し一覧 → `book-outline.md` |
+| `npm run capture -- captures/<name>.ts` | Playwright でシナリオを実行し録画 `content/rec/<name>.webm`、`mark()` の秒数 `rec/<name>.marks.json`、スクショ `content/shots/<name>/*.png` |
+
+シナリオの書き方は `captures/example.ts` を見る。録画は疑似カーソル（赤い丸）付き。
+
+## 縦型（ショート）
+
+`video-settings.yaml` を `video.width: 1080 / height: 1920` にし、`character.height` を 220 前後、`subtitle.maxWidthPercent` を 85 にする。背景は `fit: contain` が基本。`npm run sync-settings` で反映する。
+
+---
+
 # Remotion + VOICEVOX 動画テンプレート 詳細ガイド
 
 ずんだもん＆めたんの掛け合い紹介動画を作成するための完全ガイドです。

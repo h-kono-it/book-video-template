@@ -5,6 +5,8 @@ import { COLORS, VIDEO_CONFIG } from "./config";
 import { Subtitle } from "./components/Subtitle";
 import { Character } from "./components/Character";
 import { SceneVisuals } from "./components/SceneVisuals";
+import { Background, BackgroundSegment } from "./components/Background";
+import { TelopLayer } from "./components/Telop";
 
 // Google Fontsをロード
 const { fontFamily } = loadFont();
@@ -58,11 +60,22 @@ export const Main: React.FC = () => {
   const getLineDuration = (line: ScriptLine): number =>
     getAdjustedFrames(line.durationInFrames);
 
+  // 背景セグメント（bg 指定から次の bg 指定まで継続）
+  const totalLen = getLineStartFrame(scriptData.length);
+  const bgSegments: BackgroundSegment[] = [];
+  scriptData.forEach((line, index) => {
+    if (!line.bg) return;
+    const from = getLineStartFrame(index);
+    const prev = bgSegments[bgSegments.length - 1];
+    if (prev) prev.duration = from - prev.from;
+    bgSegments.push({ spec: line.bg, from, duration: totalLen - from + 60 });
+  });
+
   return (
     <AbsoluteFill
       style={{
         background: COLORS.background,
-        fontFamily: "'Noto Sans JP', 'Hiragino Sans', sans-serif",
+        fontFamily: `${fontFamily}, 'Noto Sans JP', 'Hiragino Sans', sans-serif`,
       }}
     >
       {/* 黒板背景 */}
@@ -89,6 +102,9 @@ export const Main: React.FC = () => {
           borderRadius: "0 0 8px 8px",
         }}
       />
+      {/* 全面背景（Playwright録画 / スクショ / ページ画像） */}
+      <Background segments={bgSegments} fps={fps} />
+
       {/* BGM再生 */}
       {bgmConfig && (
         <Audio
@@ -131,6 +147,17 @@ export const Main: React.FC = () => {
         fps={fps}
         visual={currentLine?.visual}
       />
+
+      {/* テロップ・強調枠（セリフの間＋pauseAfter の間表示） */}
+      {currentLine && (currentLine.telop || currentLine.marks) && (
+        <Sequence
+          key={`telop-${currentLine.id}`}
+          from={currentLineStartFrame}
+          durationInFrames={getLineDuration(currentLine) + getAdjustedFrames(currentLine.pauseAfter)}
+        >
+          <TelopLayer telop={currentLine.telop} marks={currentLine.marks} />
+        </Sequence>
+      )}
 
       {/* キャラクター */}
       <Character

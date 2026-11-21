@@ -15,7 +15,9 @@
     "editor:client": "cd editor && npm run dev",
     "editor:server": "cd editor && npm run server",
     "editor:install": "cd editor && npm install",
-    "editor:build": "cd editor && npm run build"
+    "editor:build": "cd editor && npm run build",
+    "capture": "tsx scripts/capture.ts",
+    "import-book": "bash scripts/import-book.sh"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.0",
@@ -32,7 +34,9 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "concurrently": "^8.2.2",
+    "playwright": "^1.65.1",
     "ts-node": "^10.9.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.0.0"
   }
 }

@@ -109,8 +109,14 @@ function main() {
     };
   });
 
+  // BGM: config/bgm.yaml があれば使う（src, volume, loop）
+  const BGM_PATH = path.join(ROOT_DIR, "config", "bgm.yaml");
+  const bgm = fs.existsSync(BGM_PATH) ? yaml.parse(fs.readFileSync(BGM_PATH, "utf-8")) : null;
+
   // Generate TypeScript content
   const tsContent = `import { CharacterId } from "../config";
+import type { BackgroundSpec } from "../components/Background";
+import type { TelopSpec, MarkSpec } from "../components/Telop";
 
 // アニメーションの型定義
 export type AnimationType = "none" | "fadeIn" | "slideUp" | "slideLeft" | "zoomIn" | "bounce";
@@ -139,7 +145,7 @@ export interface BGMConfig {
 }
 
 // BGM設定（動画全体で使用）
-export const bgmConfig: BGMConfig | null = null;
+export const bgmConfig: BGMConfig | null = ${JSON.stringify(bgm)};
 
 // セリフデータの型定義
 export interface ScriptLine {
@@ -154,6 +160,9 @@ export interface ScriptLine {
   emotion?: "normal" | "happy" | "surprised" | "thinking" | "sad";
   visual?: VisualContent;
   se?: SoundEffect;
+  bg?: BackgroundSpec;
+  telop?: TelopSpec | TelopSpec[];
+  marks?: MarkSpec[];
 }
 
 // シーン定義

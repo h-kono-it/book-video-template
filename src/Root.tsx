@@ -5,11 +5,13 @@ import { VIDEO_CONFIG } from "./config";
 
 // 動画の総フレーム数を計算
 const calculateTotalFrames = () => {
-  let total = 60; // オープニング用の余白
+  // Main.tsx と同じく playbackRate を考慮した長さで合計する
+  const adj = (f: number) => Math.ceil(f / VIDEO_CONFIG.playbackRate);
+  let total = 0;
   for (const line of scriptData) {
-    total += line.durationInFrames + line.pauseAfter;
+    total += adj(line.durationInFrames) + adj(line.pauseAfter);
   }
-  total += 60; // エンディング用の余白
+  total += 30; // エンディング用の余白
   return total;
 };
 

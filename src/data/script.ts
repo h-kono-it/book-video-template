@@ -1,4 +1,6 @@
 import { CharacterId } from "../config";
+import type { BackgroundSpec } from "../components/Background";
+import type { TelopSpec, MarkSpec } from "../components/Telop";
 
 // アニメーションの型定義
 export type AnimationType = "none" | "fadeIn" | "slideUp" | "slideLeft" | "zoomIn" | "bounce";
@@ -42,6 +44,9 @@ export interface ScriptLine {
   emotion?: "normal" | "happy" | "surprised" | "thinking" | "sad";
   visual?: VisualContent;
   se?: SoundEffect;
+  bg?: BackgroundSpec;
+  telop?: TelopSpec | TelopSpec[];
+  marks?: MarkSpec[];
 }
 
 // シーン定義
