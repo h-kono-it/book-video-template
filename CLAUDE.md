@@ -3,6 +3,22 @@
 upstream: nyanko3141592/remotion-voicevox-template に、**全面背景・テロップ・強調枠・Playwright収録・本の取り込み** を足したもの。
 台本の正本は **`config/script.yaml`**（`src/data/script.ts` は `npm run sync` で自動生成されるので直接編集しない）。
 
+## ブリーフ（config/brief.yaml）と作業ループ
+
+1本ごとの指示は `config/brief.yaml` に集める。各項目の意味はファイル内のコメントを参照。
+
+```bash
+npm run apply-brief   # tempo / aspect / subtitles / cast / bgm を各設定に反映し、sync まで行う
+npm run duration      # 尺の集計と目標（length）との差。行ごとの開始フレームも出る（音声がない行は文字数から見積もる）
+npm run voices        # 変更のあった行だけ音声を作り直す（--all で全行）
+npm run sync          # yaml → 生成ファイル（script.ts / settings.generated.ts）
+```
+
+- **テンポ** = VOICEVOX の話速 `voice.speed` × セリフ間の「間」の倍率 `voice.pauseScale`（video-settings.yaml）。`playbackRate` は 1.0 に固定
+- **声** = `config/characters.yaml` の `speakerId`（VOICEVOX のスタイル ID）と `voice`（speed / pitch / intonation / volume）。行ごとに `voice:` で上書きできる
+- 尺の単位はすべて実時間のフレーム数。`durationInFrames` は音声の実際の長さ、`pauseAfter` には pauseScale が掛かった値が入る
+- 台本に登場するキャラだけを描画する。`image: null` のキャラは立ち絵なしで、声と字幕だけになる
+
 ## 合成レイヤー（下から順）
 
 1. 黒板デザイン（`bg` 未指定時に見える）
@@ -41,7 +57,7 @@ upstream: nyanko3141592/remotion-voicevox-template に、**全面背景・テロ
 | `marks[]` | `{x, y, w, h, label?, color?}` 単位は % |
 
 注意:
-- 動画の `bg` は、その区間（次の bg まで）より録画が短いと途中で消える。区間長は各行の `durationInFrames/1.2 + pauseAfter/1.2` の合計。録画尺は `npx remotion ffprobe public/content/rec/x.webm` で確認する
+- 動画の `bg` は、その区間（次の bg まで）より録画が短いと途中で消える。区間の長さは `npm run duration` の開始位置から求める。録画の尺は `npx remotion ffprobe public/content/rec/x.webm` で確認する
 - 字幕とキャラが下部 ~280px を占めるので、`marks` やテロップを画面下端に置かない
 - 確認は `npx remotion still src/index.ts Main out/check.png --frame=N` で静止画を出して目視する（Studio を開かなくてよい）
 
@@ -56,7 +72,7 @@ upstream: nyanko3141592/remotion-voicevox-template に、**全面背景・テロ
 
 ## 縦型（ショート）
 
-`video-settings.yaml` を `video.width: 1080 / height: 1920` にし、`character.height` を 220 前後、`subtitle.maxWidthPercent` を 85 にする。背景は `fit: contain` が基本。`npm run sync-settings` で反映する。
+`brief.yaml` に `aspect: portrait` と書いて `npm run apply-brief` を実行する（字幕はキャラの上に移る）。背景は `fit: contain` が基本。
 
 ---
 

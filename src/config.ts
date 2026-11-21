@@ -1,9 +1,13 @@
 // 動画設定
+import { SETTINGS } from "./settings.generated";
+
+// 動画設定（video-settings.yaml → settings.generated.ts）
+const V = SETTINGS.video as { width: number; height: number; fps: number; playbackRate?: number };
 export const VIDEO_CONFIG = {
-  width: 1920,
-  height: 1080,
-  fps: 30,
-  playbackRate: 1.2, // 再生速度（音声生成時に考慮）
+  width: V.width,
+  height: V.height,
+  fps: V.fps,
+  playbackRate: V.playbackRate ?? 1.0, // テンポは VOICEVOX の話速で調整するので通常 1.0
 };
 
 // カラーパレット（黒板風デザイン）
@@ -23,7 +27,7 @@ export const COLORS = {
 };
 
 // キャラクター定義
-export type CharacterId = "zundamon" | "metan";
+export type CharacterId = string; // キャストは config/characters.yaml で定義（src/data/script.ts の CAST）
 
 export interface CharacterConfig {
   id: CharacterId;

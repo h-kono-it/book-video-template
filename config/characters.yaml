@@ -1,11 +1,15 @@
-# キャラクター設定
-# 新しいキャラクターを追加する場合はここに定義
+# キャスト定義。config/brief.yaml の cast から npm run apply-brief で更新される
+# speakerId: VOICEVOX のスタイル ID / image: public/images/<image>/（null なら立ち絵なし）
+# voice: speed（倍率）, pitch, intonation, volume
 
 zundamon:
   name: ずんだもん
   speakerId: 3
   position: right
   color: "#228B22"
+  image: zundamon
+  flipX: false
+  voice: {}
   defaultPauseAfter: 15
 
 metan:
@@ -13,11 +17,7 @@ metan:
   speakerId: 2
   position: left
   color: "#FF1493"
-  defaultPauseAfter: 15
-
-kuro_zunda:
-  name: くろずんだ
-  speakerId: null  # VOICEVOX非対応
-  position: right
-  color: "#333333"
+  image: metan
+  flipX: true
+  voice: {}
   defaultPauseAfter: 15

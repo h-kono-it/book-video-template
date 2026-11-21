@@ -1,4 +1,8 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { SETTINGS } from "../settings.generated";
+
+// 字幕（下端 bottomOffset、2行で約 200px）より上に置く
+const ABOVE_SUBTITLE = (SETTINGS.subtitle.bottomOffset ?? 40) + 260;
 
 /**
  * 文字入れ（テロップ）と強調枠。セリフ1行の間だけ表示される。
@@ -46,7 +50,7 @@ const posStyle = (pos: NonNullable<TelopSpec["position"]>): React.CSSProperties 
     case "center":
       return { top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" };
     case "bottom":
-      return { bottom: 300, left: 0, right: 0, alignItems: "center" };
+      return { bottom: ABOVE_SUBTITLE, left: 0, right: 0, alignItems: "center" };
   }
 };
 

@@ -12,6 +12,7 @@ export const SETTINGS = {
     "innerOutlineColor": "none"
   },
   "subtitle": {
+    "enabled": true,
     "bottomOffset": 40,
     "maxWidthPercent": 55,
     "maxWidthPixels": 1000,
@@ -32,7 +33,11 @@ export const SETTINGS = {
     "width": 1920,
     "height": 1080,
     "fps": 30,
-    "playbackRate": 1.2
+    "playbackRate": 1
+  },
+  "voice": {
+    "speed": 1.15,
+    "pauseScale": 1
   },
   "colors": {
     "background": "#ffffff",

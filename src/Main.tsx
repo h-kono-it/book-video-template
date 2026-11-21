@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, Audio, Sequence, staticFile, Loop } from "remotion";
 import { loadFont } from "@remotion/google-fonts/MPLUSRounded1c";
-import { scriptData, scenes, ScriptLine, bgmConfig } from "./data/script";
+import { scriptData, scenes, ScriptLine, bgmConfig, CAST } from "./data/script";
+import { SETTINGS } from "./settings.generated";
 import { COLORS, VIDEO_CONFIG } from "./config";
 import { Subtitle } from "./components/Subtitle";
 import { Character } from "./components/Character";
@@ -159,20 +160,20 @@ export const Main: React.FC = () => {
         </Sequence>
       )}
 
-      {/* キャラクター */}
-      <Character
-        characterId="metan"
-        isSpeaking={isSpeaking && currentLine?.character === "metan"}
-        emotion={currentLine?.character === "metan" ? currentLine.emotion : "normal"}
-      />
-      <Character
-        characterId="zundamon"
-        isSpeaking={isSpeaking && currentLine?.character === "zundamon"}
-        emotion={currentLine?.character === "zundamon" ? currentLine.emotion : "normal"}
-      />
+      {/* キャラクター（台本に登場するキャストだけ） */}
+      {[...new Set(scriptData.map((l) => l.character))]
+        .filter((id) => CAST[id])
+        .map((id) => (
+          <Character
+            key={`char-${id}`}
+            characterId={id}
+            isSpeaking={isSpeaking && currentLine?.character === id}
+            emotion={currentLine?.character === id ? currentLine.emotion : "normal"}
+          />
+        ))}
 
       {/* 字幕 */}
-      {currentLine && (
+      {currentLine && (SETTINGS.subtitle as { enabled?: boolean }).enabled !== false && (
         <Sequence
           key={`subtitle-${currentLine.id}`}
           from={currentLineStartFrame}

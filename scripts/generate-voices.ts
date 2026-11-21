@@ -1,219 +1,96 @@
-#!/usr/bin/env npx ts-node
-
 /**
- * VOICEVOX音声一括生成スクリプト
+ * VOICEVOX で台本の音声を一括生成する
+ *   npm run voices            変更のあった行だけ作り直す（テキスト・話者・声パラメータのハッシュで判定）
+ *   npm run voices -- --all   全行を作り直す
  *
- * 使用方法:
- *   npx ts-node scripts/generate-voices.ts
- *
- * 前提条件:
- *   - VOICEVOXがlocalhost:50021で起動していること
+ * 声 = characters.yaml の speakerId / voice × video-settings.yaml の voice.speed × 行ごとの voice
  */
-
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import * as crypto from "crypto";
+import {
+  P, readYaml, loadScript, loadCharacters, loadSettings, voiceFileName, resolveVoice,
+} from "./lib/project";
 
-const ROOT_DIR = process.cwd();
+const HOST = process.env.VOICEVOX_HOST ?? "http://localhost:50021";
 
-// 設定読み込み
-const CONFIG_PATH = path.join(ROOT_DIR, "src/config.ts");
-const SCRIPT_PATH = path.join(ROOT_DIR, "src/data/script.ts");
-const OUTPUT_DIR = path.join(ROOT_DIR, "public/voices");
-
-interface VoiceGenerationConfig {
-  host: string;
-  playbackRate: number;
-  fps: number;
-}
-
-interface ScriptLine {
-  id: number;
-  character: string;
-  text: string;
-  voiceFile: string;
-}
-
-interface CharacterConfig {
-  id: string;
-  voicevoxSpeakerId: number;
-}
-
-// VOICEVOXが起動しているか確認
-async function checkVoicevox(host: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${host}/version`);
-    if (response.ok) {
-      const version = await response.text();
-      console.log(`VOICEVOX version: ${version}`);
-      return true;
-    }
-  } catch (e) {
-    console.error("VOICEVOXに接続できません。VOICEVOXを起動してください。");
+const wavSeconds = (buf: Buffer) => {
+  // RIFF を走査して fmt と data チャンクを探す
+  let off = 12, byteRate = 0, dataLen = 0;
+  while (off + 8 <= buf.length) {
+    const id = buf.toString("ascii", off, off + 4);
+    const size = buf.readUInt32LE(off + 4);
+    if (id === "fmt ") byteRate = buf.readUInt32LE(off + 16);
+    if (id === "data") { dataLen = size; break; }
+    off += 8 + size + (size % 2);
   }
-  return false;
-}
+  return byteRate ? dataLen / byteRate : 0;
+};
 
-// 音声クエリを取得
-async function getAudioQuery(
-  host: string,
-  text: string,
-  speakerId: number
-): Promise<any> {
-  const encodedText = encodeURIComponent(text);
-  const response = await fetch(
-    `${host}/audio_query?speaker=${speakerId}&text=${encodedText}`,
-    { method: "POST" }
-  );
-  if (!response.ok) {
-    throw new Error(`audio_query failed: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-// 音声を合成
-async function synthesize(
-  host: string,
-  query: any,
-  speakerId: number
-): Promise<ArrayBuffer> {
-  const response = await fetch(`${host}/synthesis?speaker=${speakerId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(query),
-  });
-  if (!response.ok) {
-    throw new Error(`synthesis failed: ${response.statusText}`);
-  }
-  return response.arrayBuffer();
-}
-
-// WAVファイルの長さを取得（秒）
-function getWavDuration(filePath: string): number {
-  try {
-    const result = execSync(
-      `python3 -c "import wave; w=wave.open('${filePath}','r'); print(w.getnframes()/w.getframerate())"`,
-      { encoding: "utf-8" }
-    );
-    return parseFloat(result.trim());
-  } catch (e) {
-    console.error(`Failed to get duration for ${filePath}`);
-    return 0;
-  }
-}
-
-// メイン処理
 async function main() {
-  const host = "http://localhost:50021";
-  const fps = 30;
-  const playbackRate = 1.2;
-
-  // VOICEVOX確認
-  if (!(await checkVoicevox(host))) {
+  const all = process.argv.includes("--all");
+  try {
+    const v = await fetch(`${HOST}/version`);
+    console.log(`VOICEVOX ${await v.text()}`);
+  } catch {
+    console.error(`VOICEVOX に接続できない（${HOST}）。アプリを起動して。`);
     process.exit(1);
   }
 
-  // 出力ディレクトリ作成
-  if (!fs.existsSync(OUTPUT_DIR)) {
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-  }
+  const lines = loadScript();
+  const chars = loadCharacters();
+  const settings = loadSettings();
+  const fps = settings.video.fps ?? 30;
+  fs.mkdirSync(P.voices, { recursive: true });
+  const cache: Record<string, string> = readYaml(P.voiceCache, {});
+  const durations: Record<string, number> = readYaml(P.durations, {});
+  const used = new Set<string>();
+  let made = 0;
 
-  // スクリプトデータを動的に読み込み
-  // Note: 実際の実装ではesbuildなどでビルドしてから読み込む
-  console.log("スクリプトデータを読み込んでいます...");
-
-  // ここでは例としてハードコードされたデータを使用
-  // 実際にはscript.tsをパースして使用
-  const scriptData: ScriptLine[] = [];
-  const characters: Map<string, number> = new Map([
-    ["zundamon", 3],
-    ["metan", 2],
-  ]);
-
-  // script.tsを読み込んでパース
-  const scriptContent = fs.readFileSync(SCRIPT_PATH, "utf-8");
-  const scriptDataMatch = scriptContent.match(
-    /export const scriptData[^=]*=\s*\[([\s\S]*?)\];/
-  );
-
-  if (scriptDataMatch) {
-    // 簡易パース（本番ではAST解析を使用）
-    const dataStr = scriptDataMatch[1];
-    const lineMatches = dataStr.matchAll(
-      /\{\s*"?id"?:\s*(\d+),\s*"?character"?:\s*"([^"]+)",\s*"?text"?:\s*"([^"]+)"[\s\S]*?"?voiceFile"?:\s*"([^"]+)"/g
-    );
-
-    for (const match of lineMatches) {
-      scriptData.push({
-        id: parseInt(match[1]),
-        character: match[2],
-        text: match[3],
-        voiceFile: match[4],
-      });
-    }
-  }
-
-  console.log(`${scriptData.length}件のセリフを処理します...`);
-
-  const durationsArray: { id: number; file: string; duration: number; frames: number }[] = [];
-  const durationsMap: Record<string, number> = {};
-
-  for (const line of scriptData) {
-    const speakerId = characters.get(line.character);
-    if (speakerId === undefined) {
-      console.error(`Unknown character: ${line.character}`);
+  for (const line of lines) {
+    const ch = chars[line.character];
+    if (!ch || ch.speakerId == null) {
+      console.error(`skip #${line.id}: ${line.character} に speakerId が無い`);
       continue;
     }
+    const file = voiceFileName(line);
+    used.add(file);
+    const out = path.join(P.voices, file);
+    const v = resolveVoice(line, chars, settings);
+    const hash = crypto.createHash("sha1").update(JSON.stringify([line.text, ch.speakerId, v])).digest("hex").slice(0, 12);
+    if (!all && cache[file] === hash && fs.existsSync(out) && durations[file]) continue;
 
-    const outputPath = path.join(OUTPUT_DIR, line.voiceFile);
+    const q = await (await fetch(
+      `${HOST}/audio_query?speaker=${ch.speakerId}&text=${encodeURIComponent(line.text)}`, { method: "POST" }
+    )).json();
+    q.speedScale = v.speed;
+    q.pitchScale = v.pitch;
+    q.intonationScale = v.intonation;
+    q.volumeScale = v.volume;
+    const res = await fetch(`${HOST}/synthesis?speaker=${ch.speakerId}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(q),
+    });
+    if (!res.ok) throw new Error(`synthesis failed #${line.id}: ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(out, buf);
+    const sec = wavSeconds(buf);
+    durations[file] = Math.ceil(sec * fps);
+    cache[file] = hash;
+    made++;
+    console.log(`#${line.id} ${line.character} ${sec.toFixed(2)}s  ${line.text.slice(0, 30)}`);
+  }
 
-    // 既存ファイルがあればスキップ（オプション）
-    // if (fs.existsSync(outputPath)) {
-    //   console.log(`Skip: ${line.voiceFile} (already exists)`);
-    //   continue;
-    // }
-
-    try {
-      console.log(`Generating: ${line.voiceFile} - "${line.text.substring(0, 30)}..."`);
-
-      // 音声クエリ取得
-      const query = await getAudioQuery(host, line.text, speakerId);
-
-      // 音声合成
-      const audio = await synthesize(host, query, speakerId);
-
-      // ファイル保存
-      fs.writeFileSync(outputPath, Buffer.from(audio));
-
-      // 長さを取得してフレーム数を計算
-      const duration = getWavDuration(outputPath);
-      const frames = Math.ceil(duration * fps * playbackRate);
-
-      durationsArray.push({
-        id: line.id,
-        file: line.voiceFile,
-        duration,
-        frames,
-      });
-      durationsMap[line.voiceFile] = frames;
-
-      console.log(`  -> ${duration.toFixed(2)}s, ${frames} frames`);
-
-    } catch (e) {
-      console.error(`Error generating ${line.voiceFile}:`, e);
+  // 台本から消えた行の wav を掃除
+  for (const f of fs.readdirSync(P.voices)) {
+    if (f.endsWith(".wav") && !used.has(f)) {
+      fs.rmSync(path.join(P.voices, f));
+      delete durations[f];
+      delete cache[f];
     }
   }
-
-  // 結果をJSONで保存（sync-script.tsが期待するオブジェクト形式）
-  const resultPath = path.join(OUTPUT_DIR, "durations.json");
-  fs.writeFileSync(resultPath, JSON.stringify(durationsMap, null, 2));
-  console.log(`\nDuration data saved to: ${resultPath}`);
-
-  // script.ts更新用のコードを出力
-  console.log("\n=== script.ts更新用 ===");
-  for (const d of durationsArray) {
-    console.log(`ID ${d.id}: durationInFrames: ${d.frames}, // ${d.duration.toFixed(2)}s`);
-  }
+  fs.writeFileSync(P.durations, JSON.stringify(durations, null, 2));
+  fs.writeFileSync(P.voiceCache, JSON.stringify(cache, null, 2));
+  console.log(`✅ ${made} 行を生成（${lines.length - made} 行は変更なし）`);
 }
 
-main().catch(console.error);
+main();

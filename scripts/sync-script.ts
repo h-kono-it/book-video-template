@@ -1,127 +1,53 @@
 /**
- * config/script.yaml を読み込んで src/data/script.ts に変換するスクリプト
- * config/characters.yaml からキャラクター情報も読み込む
- *
- * 使用方法: npm run sync-script
+ * config/script.yaml + config/characters.yaml → src/data/script.ts を生成する
+ *   npm run sync-script
  */
-
 import * as fs from "fs";
 import * as path from "path";
-import * as yaml from "yaml";
+import {
+  P, ROOT, readYaml, loadScript, loadCharacters, loadDefaults, loadSettings,
+  voiceFileName, effectivePause,
+} from "./lib/project";
 
-const ROOT_DIR = process.cwd();
-const SCRIPT_YAML_PATH = path.join(ROOT_DIR, "config", "script.yaml");
-const CHARACTERS_YAML_PATH = path.join(ROOT_DIR, "config", "characters.yaml");
-const DEFAULTS_YAML_PATH = path.join(ROOT_DIR, "config", "defaults.yaml");
-const OUTPUT_PATH = path.join(ROOT_DIR, "src", "data", "script.ts");
-const DURATIONS_PATH = path.join(ROOT_DIR, "public", "voices", "durations.json");
-
-interface ScriptLine {
-  id: number;
-  character: string;
-  text: string;
-  displayText?: string;
-  scene: number;
-  pauseAfter: number;
-  emotion?: string;
-  visual?: {
-    type: string;
-    src?: string;
-    text?: string;
-    fontSize?: number;
-    color?: string;
-    animation?: string;
-  };
-  se?: {
-    src: string;
-    volume?: number;
-  };
-}
-
-interface CharacterConfig {
-  name: string;
-  speakerId: number | null;
-  position: string;
-  color: string;
-  defaultPauseAfter: number;
-}
-
-interface Defaults {
-  newLine: {
-    character: string;
-    pauseAfter: number;
-    durationInFrames: number;
-    scene: number;
-    emotion: string | null;
-  };
-  automation: {
-    voiceOnSave: boolean;
-    autoVoiceFileName: boolean;
-  };
-}
-
-function loadDurations(): Record<string, number> {
-  if (fs.existsSync(DURATIONS_PATH)) {
-    const content = fs.readFileSync(DURATIONS_PATH, "utf-8");
-    return JSON.parse(content);
-  }
-  return {};
-}
+const OUTPUT = path.join(ROOT, "src/data/script.ts");
 
 function main() {
-  console.log("📖 config/script.yaml を読み込み中...");
+  const lines = loadScript();
+  const chars = loadCharacters();
+  const defaults = loadDefaults();
+  const settings = loadSettings();
+  const durations: Record<string, number> = readYaml(P.durations, {});
+  const bgm = readYaml<any>(P.bgm, null);
 
-  // Load YAML files
-  const scriptYaml = fs.readFileSync(SCRIPT_YAML_PATH, "utf-8");
-  const charactersYaml = fs.readFileSync(CHARACTERS_YAML_PATH, "utf-8");
-  const defaultsYaml = fs.readFileSync(DEFAULTS_YAML_PATH, "utf-8");
+  const unknown = [...new Set(lines.map((l) => l.character))].filter((c) => !chars[c]);
+  if (unknown.length) console.warn(`⚠️  characters.yaml に無いキャラ: ${unknown.join(", ")}`);
 
-  const scriptData: ScriptLine[] = yaml.parse(scriptYaml) || [];
-  const characters: Record<string, CharacterConfig> = yaml.parse(charactersYaml);
-  const defaults: Defaults = yaml.parse(defaultsYaml);
-
-  // Load existing durations
-  const durations = loadDurations();
-
-  // Generate CharacterId type
-  const characterIds = Object.keys(characters);
-  const characterIdType = characterIds.map(id => `"${id}"`).join(" | ");
-
-  // Generate characterSpeakerMap
-  const speakerMapEntries = characterIds
-    .filter(id => characters[id].speakerId !== null)
-    .map(id => `  ${id}: ${characters[id].speakerId},`);
-
-  // Process script lines
-  const processedLines = scriptData.map((line, index) => {
-    const voiceFile = defaults.automation.autoVoiceFileName
-      ? `${String(line.id).padStart(2, "0")}_${line.character}.wav`
-      : `${String(line.id).padStart(2, "0")}_${line.character}.wav`;
-
-    // Get duration from durations.json or use default
-    const durationInFrames = durations[voiceFile] || defaults.newLine.durationInFrames;
-
+  const processed = lines.map((line) => {
+    const voiceFile = voiceFileName(line);
+    const { voice, ...rest } = line;
     return {
-      ...line,
+      ...rest,
+      scene: line.scene ?? defaults.newLine?.scene ?? 1,
       voiceFile,
-      durationInFrames,
-      pauseAfter: line.pauseAfter ?? defaults.newLine.pauseAfter,
+      durationInFrames: durations[voiceFile] ?? defaults.newLine?.durationInFrames ?? 60,
+      pauseAfter: effectivePause(line, chars, defaults, settings),
     };
   });
 
-  // BGM: config/bgm.yaml があれば使う（src, volume, loop）
-  const BGM_PATH = path.join(ROOT_DIR, "config", "bgm.yaml");
-  const bgm = fs.existsSync(BGM_PATH) ? yaml.parse(fs.readFileSync(BGM_PATH, "utf-8")) : null;
+  const cast = Object.fromEntries(
+    Object.entries(chars).map(([id, c]) => [
+      id,
+      { name: c.name, position: c.position, color: c.color, image: c.image === undefined ? id : c.image, flipX: !!c.flipX },
+    ])
+  );
 
-  // Generate TypeScript content
-  const tsContent = `import { CharacterId } from "../config";
+  const ts = `// このファイルは config/script.yaml と config/characters.yaml から自動生成される。直接編集しない（npm run sync-script）
 import type { BackgroundSpec } from "../components/Background";
 import type { TelopSpec, MarkSpec } from "../components/Telop";
 
-// アニメーションの型定義
+export type CharacterId = string;
 export type AnimationType = "none" | "fadeIn" | "slideUp" | "slideLeft" | "zoomIn" | "bounce";
 
-// ビジュアルの型定義
 export interface VisualContent {
   type: "image" | "text" | "none";
   src?: string;
@@ -130,24 +56,10 @@ export interface VisualContent {
   color?: string;
   animation?: AnimationType;
 }
+export interface SoundEffect { src: string; volume?: number }
+export interface BGMConfig { src: string; volume?: number; loop?: boolean }
+export interface CastMember { name: string; position: "left" | "right"; color: string; image: string | null; flipX: boolean }
 
-// 効果音の型定義
-export interface SoundEffect {
-  src: string;
-  volume?: number;
-}
-
-// BGM設定
-export interface BGMConfig {
-  src: string;
-  volume?: number;
-  loop?: boolean;
-}
-
-// BGM設定（動画全体で使用）
-export const bgmConfig: BGMConfig | null = ${JSON.stringify(bgm)};
-
-// セリフデータの型定義
 export interface ScriptLine {
   id: number;
   character: CharacterId;
@@ -165,41 +77,15 @@ export interface ScriptLine {
   marks?: MarkSpec[];
 }
 
-// シーン定義
-export interface SceneInfo {
-  id: number;
-  title: string;
-  background: string;
-}
+export interface SceneInfo { id: number; title: string; background: string }
+export const scenes: SceneInfo[] = [{ id: 1, title: "main", background: "solid" }];
 
-export const scenes: SceneInfo[] = [
-  { id: 1, title: "オープニング", background: "gradient" },
-  { id: 2, title: "メインコンテンツ", background: "solid" },
-  { id: 3, title: "エンディング", background: "gradient" },
-];
-
-// このファイルは config/script.yaml から自動生成されます
-// 編集する場合は config/script.yaml を編集して npm run sync-script を実行してください
-export const scriptData: ScriptLine[] = ${JSON.stringify(processedLines, null, 2)};
-
-// VOICEVOXスクリプト生成用
-export const generateVoicevoxScript = (
-  data: ScriptLine[],
-  characterSpeakerMap: Record<CharacterId, number>
-) => {
-  return data.map((line) => ({
-    id: line.id,
-    character: line.character,
-    speakerId: characterSpeakerMap[line.character],
-    text: line.text,
-    outputFile: line.voiceFile,
-  }));
-};
+export const bgmConfig: BGMConfig | null = ${JSON.stringify(bgm)};
+export const CAST: Record<string, CastMember> = ${JSON.stringify(cast, null, 2)};
+export const scriptData: ScriptLine[] = ${JSON.stringify(processed, null, 2)};
 `;
-
-  fs.writeFileSync(OUTPUT_PATH, tsContent);
-  console.log("✅ src/data/script.ts を生成しました");
-  console.log(`   ${processedLines.length} 件のセリフ`);
+  fs.writeFileSync(OUTPUT, ts);
+  console.log(`✅ src/data/script.ts を生成（${processed.length} 行）`);
 }
 
 main();

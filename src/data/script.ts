@@ -1,11 +1,10 @@
-import { CharacterId } from "../config";
+// このファイルは config/script.yaml と config/characters.yaml から自動生成される。直接編集しない（npm run sync-script）
 import type { BackgroundSpec } from "../components/Background";
 import type { TelopSpec, MarkSpec } from "../components/Telop";
 
-// アニメーションの型定義
+export type CharacterId = string;
 export type AnimationType = "none" | "fadeIn" | "slideUp" | "slideLeft" | "zoomIn" | "bounce";
 
-// ビジュアルの型定義
 export interface VisualContent {
   type: "image" | "text" | "none";
   src?: string;
@@ -14,24 +13,10 @@ export interface VisualContent {
   color?: string;
   animation?: AnimationType;
 }
+export interface SoundEffect { src: string; volume?: number }
+export interface BGMConfig { src: string; volume?: number; loop?: boolean }
+export interface CastMember { name: string; position: "left" | "right"; color: string; image: string | null; flipX: boolean }
 
-// 効果音の型定義
-export interface SoundEffect {
-  src: string;
-  volume?: number;
-}
-
-// BGM設定
-export interface BGMConfig {
-  src: string;
-  volume?: number;
-  loop?: boolean;
-}
-
-// BGM設定（動画全体で使用）
-export const bgmConfig: BGMConfig | null = null;
-
-// セリフデータの型定義
 export interface ScriptLine {
   id: number;
   character: CharacterId;
@@ -49,21 +34,26 @@ export interface ScriptLine {
   marks?: MarkSpec[];
 }
 
-// シーン定義
-export interface SceneInfo {
-  id: number;
-  title: string;
-  background: string;
-}
+export interface SceneInfo { id: number; title: string; background: string }
+export const scenes: SceneInfo[] = [{ id: 1, title: "main", background: "solid" }];
 
-export const scenes: SceneInfo[] = [
-  { id: 1, title: "オープニング", background: "gradient" },
-  { id: 2, title: "メインコンテンツ", background: "solid" },
-  { id: 3, title: "エンディング", background: "gradient" },
-];
-
-// このファイルは config/script.yaml から自動生成されます
-// 編集する場合は config/script.yaml を編集して npm run sync-script を実行してください
+export const bgmConfig: BGMConfig | null = null;
+export const CAST: Record<string, CastMember> = {
+  "zundamon": {
+    "name": "ずんだもん",
+    "position": "right",
+    "color": "#228B22",
+    "image": "zundamon",
+    "flipX": false
+  },
+  "metan": {
+    "name": "四国めたん",
+    "position": "left",
+    "color": "#FF1493",
+    "image": "metan",
+    "flipX": true
+  }
+};
 export const scriptData: ScriptLine[] = [
   {
     "id": 1,
@@ -109,17 +99,3 @@ export const scriptData: ScriptLine[] = [
     "durationInFrames": 31
   }
 ];
-
-// VOICEVOXスクリプト生成用
-export const generateVoicevoxScript = (
-  data: ScriptLine[],
-  characterSpeakerMap: Record<CharacterId, number>
-) => {
-  return data.map((line) => ({
-    id: line.id,
-    character: line.character,
-    speakerId: characterSpeakerMap[line.character],
-    text: line.text,
-    outputFile: line.voiceFile,
-  }));
-};

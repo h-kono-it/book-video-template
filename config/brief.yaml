@@ -1,0 +1,28 @@
+# 動画のブリーフ。指示はここに集める。
+# 技術系のパラメータ（tempo / aspect / subtitles / cast / bgm）は npm run apply-brief で各設定に反映される。
+# 内容系のパラメータ（kind / length / audience / tone / scope / cta）は、Claude が台本を書くときに読む。
+
+kind: promo            # promo（宣伝）| explainer（解説）
+length: 60             # 目標の尺（秒）。±10% に収める
+tempo: normal          # slow | normal | fast | { speed: 1.2, pauseScale: 0.8 }
+aspect: landscape      # landscape 1920x1080 | portrait 1080x1920 | square 1080x1080
+subtitles: true
+
+# キャスト。先頭が説明役（右）、2人目が聞き役（左）。1人だけにするとソロのナレーション
+cast:
+  - zundamon
+  - metan
+# 声を細かく変えたいとき（style 名は VOICEVOX の表記。pitch は -0.15〜0.15 程度、intonation は 0〜2）
+#  - { id: zundamon, style: あまあま, voice: { pitch: 0.03, intonation: 1.2 } }
+#  - { id: tsumugi, speaker: 春日部つむぎ, style: ノーマル, image: null, color: "#f59e0b" }   # 立ち絵なしで声だけ
+
+audience: 中級者        # 想定する視聴者
+tone: ゆるめ            # ゆるめ | まじめ | ハイテンション
+scope: all              # 扱う範囲: all | [chap-java-21, chap-java-25] など
+se: few                 # 効果音の量: none | few | normal
+bgm: off                # off | ファイル名（public/bgm/ 内）| { src: x.mp3, volume: 0.1 }
+cta:                    # 最後に出す頒布情報。空欄のままなら Claude が確認する
+  event:
+  space:
+  price:
+  url:

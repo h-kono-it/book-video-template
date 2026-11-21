@@ -1,5 +1,6 @@
 import { Img, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
-import { DEFAULT_CHARACTERS, CharacterId } from "../config";
+import { CharacterId } from "../config";
+import { CAST } from "../data/script";
 import { SETTINGS, AVAILABLE_IMAGES } from "../settings.generated";
 
 interface CharacterProps {
@@ -46,9 +47,10 @@ export const Character: React.FC<CharacterProps> = ({
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const characterConfig = DEFAULT_CHARACTERS.find((c) => c.id === characterId);
+  const characterConfig = CAST[characterId];
 
-  if (!characterConfig) {
+  // 立ち絵なし（image: null）のキャラは声と字幕だけ
+  if (!characterConfig || !characterConfig.image) {
     return null;
   }
 
@@ -72,8 +74,8 @@ export const Character: React.FC<CharacterProps> = ({
 
   // 画像パスを取得（表情差分対応、存在チェック付き）
   const basePath = SETTINGS.character.imagesBasePath;
-  const imageFileName = getImageFileName(characterId, emotion, mouthOpen);
-  const currentImage = `${basePath}/${characterId}/${imageFileName}`;
+  const imageFileName = getImageFileName(characterConfig.image, emotion, mouthOpen);
+  const currentImage = `${basePath}/${characterConfig.image}/${imageFileName}`;
 
   // 設定ファイルのuseImagesフラグをチェック
   const hasImage = SETTINGS.character.useImages;
