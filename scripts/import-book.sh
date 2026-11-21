@@ -19,6 +19,12 @@ for f in screen_covered.pdf screen.pdf print.pdf; do [ -f "$BOOK/$f" ] && PDF="$
 if [ -n "$PDF" ]; then
   rm -f "$OUT"/pages/p-*.png
   pdftoppm -png -r "$DPI" "$PDF" "$OUT/pages/p"
+  # pdftoppm はページ数で桁数が変わる（p-01 / p-001）ので、常に3桁に揃える
+  for f in "$OUT"/pages/p-*.png; do
+    n=$(basename "$f" .png); n=${n#p-}; n=$((10#$n))
+    t=$(printf "%s/pages/p-%03d.png" "$OUT" "$n")
+    [ "$f" = "$t" ] || mv "$f" "$t"
+  done
   echo "pages: $(ls "$OUT/pages" | wc -l | tr -d ' ') from $PDF"
 else
   echo "PDF が見つからない（先に本側で npm run build してね）" >&2
