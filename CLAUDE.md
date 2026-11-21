@@ -24,7 +24,7 @@ npm run sync          # yaml → 生成ファイル（script.ts / settings.gener
 1. 黒板デザイン（`bg` 未指定時に見える）
 2. **`bg`** 全面背景: 指定した行から**次に `bg` が出てくる行まで継続**する
 3. `visual`（upstream 互換の中央表示。新規では `bg` + `telop` を推奨）
-4. **`marks`** 強調枠 / **`telop`** 文字入れ: その行の間（＋pauseAfter）だけ表示
+4. **`marks`** 強調枠 / **`telop`** 文字入れ: その行の間（＋pauseAfter）だけ表示。**連続する行に「まったく同じ内容」の項目があれば1つにつながり、アニメーションは最初の1回だけ**（背景が切り替わっても続く）
 5. キャラクター、字幕
 
 ```yaml
@@ -57,6 +57,7 @@ npm run sync          # yaml → 生成ファイル（script.ts / settings.gener
 | `marks[]` | `{x, y, w, h, label?, color?}` 単位は % |
 
 注意:
+- 同じテロップを続けて出すときは、YAML のアンカー（`telop: &ch1 {...}` → 次の行で `telop: *ch1`）で**同一の値**を書く。文字・style・fontSize・accent などが1つでも違うと別物として扱われ、アニメーションがやり直しになる。配列の場合は項目ごとに判定するので、章ラベルを残したまま強調文字だけ差し替えられる
 - 動画の `bg` は、その区間（次の bg まで）より録画が短いと途中で消える。区間の長さは `npm run duration` の開始位置から求める。録画の尺は `npx remotion ffprobe public/content/rec/x.webm` で確認する
 - 字幕とキャラが下部 ~280px を占めるので、`marks` やテロップを画面下端に置かない
 - 確認は `npx remotion still src/index.ts Main out/check.png --frame=N` で静止画を出して目視する（Studio を開かなくてよい）

@@ -7,7 +7,7 @@ import { Subtitle } from "./components/Subtitle";
 import { Character } from "./components/Character";
 import { SceneVisuals } from "./components/SceneVisuals";
 import { Background, BackgroundSegment } from "./components/Background";
-import { TelopLayer } from "./components/Telop";
+import { TelopLayer, TelopSpec, MarkSpec } from "./components/Telop";
 
 // Google Fontsをロード
 const { fontFamily } = loadFont();
@@ -70,6 +70,31 @@ export const Main: React.FC = () => {
     const prev = bgSegments[bgSegments.length - 1];
     if (prev) prev.duration = from - prev.from;
     bgSegments.push({ spec: line.bg, from, duration: totalLen - from + 60 });
+  });
+
+  // テロップ・強調枠のセグメント:
+  // 連続する行に「まったく同じ内容」の項目があれば1つにつなげ、行が変わってもアニメーションをやり直さない
+  type OverlaySeg = { key: string; from: number; duration: number; telop?: TelopSpec; mark?: MarkSpec };
+  const overlaySegs: OverlaySeg[] = [];
+  const openSegs = new Map<string, OverlaySeg>();
+  scriptData.forEach((line, index) => {
+    const from = getLineStartFrame(index);
+    const len = getLineDuration(line) + getAdjustedFrames(line.pauseAfter);
+    const telops = line.telop ? (Array.isArray(line.telop) ? line.telop : [line.telop]) : [];
+    const items: [string, { telop?: TelopSpec; mark?: MarkSpec }][] = [
+      ...telops.map((t) => [`t:${JSON.stringify(t)}`, { telop: t }] as [string, { telop: TelopSpec }]),
+      ...(line.marks ?? []).map((m) => [`m:${JSON.stringify(m)}`, { mark: m }] as [string, { mark: MarkSpec }]),
+    ];
+    for (const [k, item] of items) {
+      const open = openSegs.get(k);
+      if (open && open.from + open.duration === from) {
+        open.duration += len; // 直前の行から続いている → 延長
+      } else {
+        const seg = { key: `${k}@${from}`, from, duration: len, ...item };
+        overlaySegs.push(seg);
+        openSegs.set(k, seg);
+      }
+    }
   });
 
   return (
@@ -149,16 +174,12 @@ export const Main: React.FC = () => {
         visual={currentLine?.visual}
       />
 
-      {/* テロップ・強調枠（セリフの間＋pauseAfter の間表示） */}
-      {currentLine && (currentLine.telop || currentLine.marks) && (
-        <Sequence
-          key={`telop-${currentLine.id}`}
-          from={currentLineStartFrame}
-          durationInFrames={getLineDuration(currentLine) + getAdjustedFrames(currentLine.pauseAfter)}
-        >
-          <TelopLayer telop={currentLine.telop} marks={currentLine.marks} />
+      {/* テロップ・強調枠（同じ内容が連続する行はつなげて1回だけアニメーション） */}
+      {overlaySegs.map((seg) => (
+        <Sequence key={seg.key} from={seg.from} durationInFrames={Math.max(1, seg.duration)}>
+          <TelopLayer telop={seg.telop} marks={seg.mark ? [seg.mark] : undefined} />
         </Sequence>
-      )}
+      ))}
 
       {/* キャラクター（台本に登場するキャストだけ） */}
       {[...new Set(scriptData.map((l) => l.character))]
