@@ -1,14 +1,14 @@
 /**
  * 台本の尺を集計し、brief.yaml の length（目標秒数）と比べる
  *   npm run duration
- * 音声が未生成の行は文字数から見積もる（≈ 7 文字/秒 × 話速）。見積もりの行には * を付ける。
+ * 音声が未生成の行は文字数から見積もる（≈ 6 文字/秒 × 話速）。見積もりの行には * を付ける。
  */
 import {
   P, readYaml, loadScript, loadCharacters, loadDefaults, loadSettings, loadBrief,
   voiceFileName, effectivePause, resolveVoice,
 } from "./lib/project";
 
-const CHARS_PER_SEC = 7;
+const CHARS_PER_SEC = 6; // VOICEVOX 実測（話速1.0）
 const MAX_CHARS = 40;
 
 function main() {
