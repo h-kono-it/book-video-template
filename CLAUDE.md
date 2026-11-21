@@ -51,16 +51,22 @@ npm run sync          # yaml → 生成ファイル（script.ts / settings.gener
 | `bg.fit` | `contain`（既定、余白は `bg.color`）/ `cover` |
 | `bg.kenBurns` | `in` / `out` / `none`（画像のゆっくりズーム） |
 | `bg.startFrom` / `playbackRate` / `volume` | 動画の開始秒・速度・音量（既定ミュート） |
-| `telop.style` | `label`(左上ピル) / `title`(上部の帯) / `emphasis`(中央の大文字) / `note`(右上の注記) |
+| `telop.style` | `label`(左上ピル) / `title`(上部の帯) / `emphasis`(中央の大文字) / `note`(右上の注記) / `impact`(中央・黄色の極太・傾き・弾む。`rotate` で角度) |
 | `telop.position` | `top-left` / `top` / `top-right` / `center` / `bottom` |
 | `telop.accent` / `fontSize` | 色・サイズ |
 | `marks[]` | `{x, y, w, h, label?, color?}` 単位は % |
+| `fx[]` | 行の頭で発火する画面効果: `shake`(揺れ) / `zoom`(打ち込みズーム) / `flash`(白フラッシュ) / `lines`(集中線・行の間ずっと) |
+| `se` | `{ src, volume }`。`public/se/` の `pop` `whoosh` `boom` `ding`（`.wav`）は `scripts/gen-sfx.py` で合成した自作音 |
 
 注意:
 - 同じテロップを続けて出すときは、YAML のアンカー（`telop: &ch1 {...}` → 次の行で `telop: *ch1`）で**同一の値**を書く。文字・style・fontSize・accent などが1つでも違うと別物として扱われ、アニメーションがやり直しになる。配列の場合は項目ごとに判定するので、章ラベルを残したまま強調文字だけ差し替えられる
 - 動画の `bg` は、その区間（次の bg まで）より録画が短いと途中で消える。区間の長さは `npm run duration` の開始位置から求める。録画の尺は `npx remotion ffprobe public/content/rec/x.webm` で確認する
 - 字幕とキャラが下部 ~280px を占めるので、`marks` やテロップを画面下端に置かない
 - 確認は `npx remotion still src/index.ts Main out/check.png --frame=N` で静止画を出して目視する（Studio を開かなくてよい）
+
+## 効果音・BGM
+
+`python3 scripts/gen-sfx.py` で、効果音4種（pop / whoosh / boom / ding）と 150BPM のビート `public/bgm/beat150.wav` を合成する（標準ライブラリのみ・自作なので権利フリー）。BGM は brief の `bgm: { src: beat150.wav, volume: 0.12 }` で使う。声の邪魔をしない音量の目安は 0.1〜0.15。
 
 ## 素材の取り込み
 

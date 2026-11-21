@@ -75,6 +75,7 @@ export interface ScriptLine {
   bg?: BackgroundSpec;
   telop?: TelopSpec | TelopSpec[];
   marks?: MarkSpec[];
+  fx?: ("shake" | "zoom" | "flash" | "lines")[];
 }
 
 export interface SceneInfo { id: number; title: string; background: string }

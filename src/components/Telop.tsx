@@ -17,10 +17,11 @@ const ABOVE_SUBTITLE = (SETTINGS.subtitle.bottomOffset ?? 40) + 260;
  */
 export interface TelopSpec {
   text: string;
-  style?: "label" | "title" | "emphasis" | "note";
+  style?: "label" | "title" | "emphasis" | "note" | "impact";
   position?: "top-left" | "top" | "top-right" | "center" | "bottom";
   accent?: string;
   fontSize?: number;
+  rotate?: number; // impact の傾き（度）。既定 -4
 }
 
 export interface MarkSpec {
@@ -37,6 +38,7 @@ const DEFAULT_POS: Record<NonNullable<TelopSpec["style"]>, NonNullable<TelopSpec
   title: "top",
   emphasis: "center",
   note: "top-right",
+  impact: "center",
 };
 
 const posStyle = (pos: NonNullable<TelopSpec["position"]>): React.CSSProperties => {
@@ -87,6 +89,22 @@ const TelopBox: React.FC<{ t: TelopSpec }> = ({ t }) => {
         transform: `scale(${0.6 + 0.4 * enter})`,
       };
       break;
+    case "impact": {
+      // ドパガキ用: 大きく出て弾みながら縮む・傾き・黄色の極太文字に黒縁と色付きの影
+      const pop = spring({ frame, fps, config: { damping: 7, stiffness: 260, mass: 0.6 } });
+      inner = {
+        fontSize: t.fontSize ?? 150,
+        fontWeight: 900,
+        color: "#ffe600",
+        WebkitTextStroke: `20px #111`,
+        paintOrder: "stroke fill",
+        textShadow: `12px 12px 0 ${t.accent ?? "#ff2d55"}`,
+        textAlign: "center",
+        letterSpacing: "-0.02em",
+        transform: `rotate(${t.rotate ?? -4}deg) scale(${interpolate(pop, [0, 1], [2.2, 1])})`,
+      };
+      break;
+    }
     case "note":
       inner = {
         fontSize: t.fontSize ?? 40,

@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, Audio, Sequence, staticFile, Loop } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, Audio, Sequence, staticFile, Loop, Img } from "remotion";
 import { loadFont } from "@remotion/google-fonts/MPLUSRounded1c";
 import { scriptData, scenes, ScriptLine, bgmConfig, CAST } from "./data/script";
 import { SETTINGS } from "./settings.generated";
@@ -97,11 +97,22 @@ export const Main: React.FC = () => {
     }
   });
 
+  // 画面効果 fx（行の頭で発火）: shake 揺れ / zoom 打ち込みズーム / flash 白フラッシュ / lines 集中線（行の間ずっと）
+  const fx = new Set(currentLine?.fx ?? []);
+  const lf = frame - currentLineStartFrame;
+  const decay = (n: number) => Math.max(0, 1 - lf / n);
+  const shakeAmp = fx.has("shake") ? 22 * decay(12) : 0;
+  const dx = shakeAmp * Math.sin(lf * 2.7);
+  const dy = shakeAmp * Math.cos(lf * 3.3);
+  const zoom = fx.has("zoom") ? 1 + 0.14 * decay(8) ** 2 : 1;
+  const flash = fx.has("flash") ? 0.85 * decay(6) : 0;
+
   return (
     <AbsoluteFill
       style={{
         background: COLORS.background,
         fontFamily: `${fontFamily}, 'Noto Sans JP', 'Hiragino Sans', sans-serif`,
+        transform: `translate(${dx}px, ${dy}px) scale(${zoom * (shakeAmp > 0 ? 1.04 : 1)})`, // 揺れで端が見えないよう少し拡大
       }}
     >
       {/* 黒板背景 */}
@@ -130,6 +141,13 @@ export const Main: React.FC = () => {
       />
       {/* 全面背景（Playwright録画 / スクショ / ページ画像） */}
       <Background segments={bgSegments} fps={fps} />
+
+      {/* 集中線 */}
+      {fx.has("lines") && (
+        <AbsoluteFill style={{ opacity: 0.55, transform: `rotate(${lf * 0.15}deg) scale(1.25)` }}>
+          <Img src={staticFile("fx/lines.png")} style={{ width: "100%", height: "100%" }} />
+        </AbsoluteFill>
+      )}
 
       {/* BGM再生 */}
       {bgmConfig && (
@@ -206,6 +224,9 @@ export const Main: React.FC = () => {
           />
         </Sequence>
       )}
+
+      {/* 白フラッシュ（最前面） */}
+      {flash > 0 && <AbsoluteFill style={{ background: "#fff", opacity: flash }} />}
     </AbsoluteFill>
   );
 };
